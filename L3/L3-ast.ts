@@ -78,7 +78,9 @@ import { Sexp, Token } from "s-expression";
 
 export type Exp = DefineExp | CExp;
 export type AtomicExp = NumExp | BoolExp | StrExp | PrimOp | VarRef;
-export type CompoundExp = AppExp | IfExp | ProcExp | LetExp | LitExp;
+// --------------------------------2a
+export type CompoundExp = AppExp | IfExp | ProcExp | LetExp | LitExp | ClassExp;
+// --------------------------------2a
 export type CExp = AtomicExp | CompoundExp;
 
 export type Program = { tag: "Program"; exps: Exp[] };
@@ -97,6 +99,10 @@ export type Binding = { tag: "Binding"; var: VarDecl; val: CExp };
 export type LetExp = { tag: "LetExp"; bindings: Binding[]; body: CExp[] };
 // L3
 export type LitExp = { tag: "LitExp"; val: SExpValue };
+
+// --------------------------------2a
+export type ClassExp = { tag: "ClassExp"; var: VarDecl[]; binding: Binding[] };
+// --------------------------------2a
 
 // Type value constructors for disjoint types
 export const makeProgram = (exps: Exp[]): Program => ({
@@ -168,6 +174,7 @@ export const isBinding = (x: any): x is Binding => x.tag === "Binding";
 export const isLetExp = (x: any): x is LetExp => x.tag === "LetExp";
 // L3
 export const isLitExp = (x: any): x is LitExp => x.tag === "LitExp";
+export const isClassExp = (x: any): x is ClassExp => x.tag === "ClassExp";
 
 // Type predicates for type unions
 export const isExp = (x: any): x is Exp => isDefineExp(x) || isCExp(x);
@@ -214,11 +221,13 @@ export const parseL3CompoundExp = (op: Sexp, params: Sexp[]): Result<Exp> =>
   op === "define" ? parseDefine(params) : parseL3CompoundCExp(op, params);
 
 // CompoundCExp -> IfExp | ProcExp | LetExp | LitExp | AppExp
+// add here also -> ClassExp is a special form (in the boolean func).--------------------------------------------2a
 export const parseL3CompoundCExp = (op: Sexp, params: Sexp[]): Result<CExp> =>
   isString(op) && isSpecialForm(op)
     ? parseL3SpecialForm(op, params)
     : parseAppExp(op, params);
 
+// add a call for parseClassExp (also impl this func)----------------------------------2a
 export const parseL3SpecialForm = (op: Sexp, params: Sexp[]): Result<CExp> =>
   isEmpty(params)
     ? makeFailure("Empty args for special form")
@@ -236,7 +245,13 @@ export const parseL3SpecialForm = (op: Sexp, params: Sexp[]): Result<CExp> =>
     ? isNonEmptyList<Sexp>(params)
       ? parseLitExp(first(params))
       : makeFailure(`Bad quote exp: ${params}`)
-    : makeFailure("Never");
+    : // --------------------------------2a
+    op == "class"
+    ? isNonEmptyList<Sexp>(params) // needed?-------------------
+      ? parseClassExp(first(params), rest(params))
+      : makeFailure(`Bad class exp: ${params}`)
+    : // --------------------------------2a
+      makeFailure("Never");
 
 // DefineExp -> (define <varDecl> <CExp>)
 export const parseDefine = (params: List<Sexp>): Result<DefineExp> =>
@@ -310,8 +325,10 @@ const isPrimitiveOp = (x: string): boolean =>
     "string?",
   ].includes(x);
 
+// add class as a special form-----------------------------------2a
 const isSpecialForm = (x: string): boolean =>
-  ["if", "lambda", "let", "quote"].includes(x);
+  ["if", "lambda", "let", "quote", "class"].includes(x);
+// --------------------------------2a
 
 const parseAppExp = (op: Sexp, params: Sexp[]): Result<AppExp> =>
   bind(parseL3CExp(op), (rator: CExp) =>
@@ -455,4 +472,19 @@ export const unparseL3 = (exp: Program | Exp): string =>
     ? `(define ${exp.var.var} ${unparseL3(exp.val)})`
     : isProgram(exp)
     ? `(L3 ${unparseLExps(exp.exps)})`
+    : isClassExp(exp)
+    ? `-------------------------------------2a`
     : exp;
+
+// --------------------------------2a
+export const parseClassExp = (vars: Sexp, binding: Sexp[]): Result<ClassExp> =>
+  // isArray(vars) && allT(isString, vars)
+  // ? mapv(mapResult(parseL3CExp, body), (cexps: CExp[]) =>
+  //     makeProcExp(map(makeVarDecl, vars), cexps)
+  //   )
+  // : makeFailure(`Invalid vars for ProcExp ${format(vars)}`);
+  isArray(vars) && allT(isString, vars)
+    ? makeFailure("s") // map(makeVarDecl, vars)
+    : makeFailure(`Invalid vars for ClassExp ${format(vars)}`);
+
+// --------------------------------2a
