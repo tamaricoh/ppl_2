@@ -523,5 +523,4 @@ const parseBindings = (bindings: Sexp): Result<Binding[]> => {
     makeOk(zipWith(makeBinding, vars, vals))
   );
 };
-
 // --------------------------------2a
