@@ -493,13 +493,21 @@ export const unparseL3 = (exp: Program | Exp): string =>
     : // --------------------------------2a
     isClassExp(exp)
     ? `(class (${exp.var.map((v) => v.var).join(" ")}) (${exp.binding
-        .map((m) => `(0${m.var.var} 1${unparseL3(m.val)}2)`)
+        .map((m) => `(${m.var.var} ${unparseL3(m.val)})`)
         // .map((m) => `(${m.val}22${m.var})`)
         .join(" ")}))`
     : // --------------------------------2a
       exp;
 
-export const parseClassExp = (vars: Sexp, bindings: Sexp[]): Result<ClassExp> =>
+
+
+const parseVarDecls = (vars: Sexp): Result<VarDecl[]> =>
+  isArray(vars) && allT(isString, vars)
+    ? makeOk(map(makeVarDecl, vars))
+    : makeFailure(`Invalid vars for ClassExp ${format(vars)}`);
+
+
+const parseClassExp = (vars: Sexp, bindings: Sexp[]): Result<ClassExp> =>
   bind(parseVarDecls(vars), (varDecls: VarDecl[]) =>
     bind(
       mapResult(parseBindings, bindings),
@@ -514,23 +522,17 @@ export const parseClassExp = (vars: Sexp, bindings: Sexp[]): Result<ClassExp> =>
     )
   );
 
-const parseVarDecls = (vars: Sexp): Result<VarDecl[]> =>
-  isArray(vars) && allT(isString, vars)
-    ? makeOk(map(makeVarDecl, vars))
-    : makeFailure(`Invalid vars for ClassExp ${format(vars)}`);
-
-const parseBindings = (bindings: Sexp): Result<Binding[]> => {
-  if (!isGoodBindings(bindings)) {
-    return makeFailure(`Invalid bindings: ${format(bindings)}`);
-  }
-  const vars = map((b) => b[0], bindings);
-  const valsResult = mapResult(
-    (binding) => parseL3CExp(rest(binding)),
-    bindings
-  );
-  return bind(valsResult, (vals: CExp[]) =>
-    makeOk(zipWith(makeBinding, vars, vals))
-  );
-};
-
+  const parseBindings = (bindings: Sexp): Result<Binding[]> => {
+    if (!isGoodBindings(bindings)) {
+      return makeFailure(`Invalid bindings: ${format(bindings)}`);
+    }
+    const vars = map((b) => b[0], bindings);
+    const valsResult = mapResult(
+      (binding) => parseL3CExp(rest(binding)[0]),
+      bindings
+    );
+    return bind(valsResult, (vals: CExp[]) =>
+      makeOk(zipWith(makeBinding, vars, vals))
+    );
+  };
 // --------------------------------2a
