@@ -156,6 +156,17 @@ export const makeLitExp = (val: SExpValue): LitExp => ({
   val: val,
 });
 
+// --------------------------------2a
+export const makeClassExp = (
+  vars: VarDecl[],
+  bindings: Binding[]
+): ClassExp => ({
+  tag: "ClassExp",
+  var: vars,
+  binding: bindings,
+});
+// --------------------------------2a
+
 // Type predicates for disjoint types
 export const isProgram = (x: any): x is Program => x.tag === "Program";
 export const isDefineExp = (x: any): x is DefineExp => x.tag === "DefineExp";
@@ -174,7 +185,9 @@ export const isBinding = (x: any): x is Binding => x.tag === "Binding";
 export const isLetExp = (x: any): x is LetExp => x.tag === "LetExp";
 // L3
 export const isLitExp = (x: any): x is LitExp => x.tag === "LitExp";
+// --------------------------------2a
 export const isClassExp = (x: any): x is ClassExp => x.tag === "ClassExp";
+// --------------------------------2a
 
 // Type predicates for type unions
 export const isExp = (x: any): x is Exp => isDefineExp(x) || isCExp(x);
@@ -247,7 +260,7 @@ export const parseL3SpecialForm = (op: Sexp, params: Sexp[]): Result<CExp> =>
       : makeFailure(`Bad quote exp: ${params}`)
     : // --------------------------------2a
     op == "class"
-    ? isNonEmptyList<Sexp>(params) // needed?-------------------
+    ? isNonEmptyList<Sexp>(params)
       ? parseClassExp(first(params), rest(params))
       : makeFailure(`Bad class exp: ${params}`)
     : // --------------------------------2a
@@ -472,19 +485,29 @@ export const unparseL3 = (exp: Program | Exp): string =>
     ? `(define ${exp.var.var} ${unparseL3(exp.val)})`
     : isProgram(exp)
     ? `(L3 ${unparseLExps(exp.exps)})`
-    : isClassExp(exp)
-    ? `-------------------------------------2a`
-    : exp;
+    : // --------------------------------2a
+    isClassExp(exp)
+    ? `(class (${map((v: VarDecl) => v.var, exp.var).join(" ")}) (${map(
+        (b: Binding) => `(${b.var.var} ${unparseL3(b.val)})`,
+        exp.binding
+      ).join(" ")}))`
+    : // --------------------------------2a
+      exp;
 
-// --------------------------------2a
 export const parseClassExp = (vars: Sexp, binding: Sexp[]): Result<ClassExp> =>
-  // isArray(vars) && allT(isString, vars)
-  // ? mapv(mapResult(parseL3CExp, body), (cexps: CExp[]) =>
-  //     makeProcExp(map(makeVarDecl, vars), cexps)
-  //   )
-  // : makeFailure(`Invalid vars for ProcExp ${format(vars)}`);
   isArray(vars) && allT(isString, vars)
-    ? makeFailure("s") // map(makeVarDecl, vars)
+    ? mapv(mapResult(parseBinding, binding), (bindings: Binding[]) =>
+        makeClassExp(map(makeVarDecl, vars), bindings)
+      )
     : makeFailure(`Invalid vars for ClassExp ${format(vars)}`);
+
+const parseBinding = (binding: Sexp): Result<Binding> =>
+  isNonEmptyList<Sexp>(binding) &&
+  binding.length === 2 &&
+  isIdentifier(first(binding))
+    ? bind(parseL3CExp(second(binding)), (val: CExp) =>
+        makeOk(makeBinding(first(binding) as string, val))
+      )
+    : makeFailure(`Invalid binding: ${format(binding)}`);
 
 // --------------------------------2a
