@@ -496,8 +496,8 @@ export const unparseL3 = (exp: Program | Exp): string =>
 
 export const parseClassExp = (vars: Sexp, binding: Sexp[]): Result<ClassExp> =>
   isArray(vars) && allT(isString, vars)
-    ? mapv(mapResult(parseBinding, binding), (parsedBindings: Binding[]) =>
-        makeClassExp(map(makeVarDecl, vars), parsedBindings)
+    ? mapv(mapResult(parseBinding, binding), (bindings: Binding[]) =>
+        makeClassExp(map(makeVarDecl, vars), bindings)
       )
     : makeFailure(`Invalid vars for ClassExp ${format(vars)}`);
 
@@ -509,4 +509,5 @@ const parseBinding = (binding: Sexp): Result<Binding> =>
         makeOk(makeBinding(first(binding) as string, val))
       )
     : makeFailure(`Invalid binding: ${format(binding)}`);
+
 // --------------------------------2a
