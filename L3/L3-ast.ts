@@ -493,15 +493,24 @@ export const unparseL3 = (exp: Program | Exp): string =>
     : // --------------------------------2a
     isClassExp(exp)
     ? `(class (${exp.var.map((v) => v.var).join(" ")}) (${exp.binding
-        .map((b) => `(${b.var.var} ${unparseL3(b.val)})`)
+        .map((m) => `(0${m.var.var} 1${unparseL3(m.val)}2)`)
+        // .map((m) => `(${m.val}22${m.var})`)
         .join(" ")}))`
     : // --------------------------------2a
       exp;
 
 export const parseClassExp = (vars: Sexp, bindings: Sexp[]): Result<ClassExp> =>
   bind(parseVarDecls(vars), (varDecls: VarDecl[]) =>
-    bind(parseBindings(bindings), (bindings: Binding[]) =>
-      makeOk(makeClassExp(varDecls, bindings))
+    bind(
+      mapResult(parseBindings, bindings),
+      (bindingsList: List<Binding[]>) => {
+        // Assuming mapResult returns a List<Binding[]>
+        const bindings: Binding[] = bindingsList.reduce(
+          (acc, curr) => acc.concat(curr),
+          []
+        );
+        return makeOk(makeClassExp(varDecls, bindings));
+      }
     )
   );
 
@@ -516,11 +525,12 @@ const parseBindings = (bindings: Sexp): Result<Binding[]> => {
   }
   const vars = map((b) => b[0], bindings);
   const valsResult = mapResult(
-    (binding) => parseL3CExp(second(binding)),
+    (binding) => parseL3CExp(rest(binding)),
     bindings
   );
   return bind(valsResult, (vals: CExp[]) =>
     makeOk(zipWith(makeBinding, vars, vals))
   );
 };
+
 // --------------------------------2a
