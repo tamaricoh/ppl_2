@@ -101,7 +101,7 @@ export type LetExp = { tag: "LetExp"; bindings: Binding[]; body: CExp[] };
 export type LitExp = { tag: "LitExp"; val: SExpValue };
 
 // --------------------------------2a
-export type ClassExp = { tag: "ClassExp"; var: VarDecl[]; binding: Binding[] };
+export type ClassExp = { tag: "ClassExp"; fields: VarDecl[]; methods: Binding[] };
 // --------------------------------2a
 
 // Type value constructors for disjoint types
@@ -162,8 +162,8 @@ export const makeClassExp = (
   bindings: Binding[]
 ): ClassExp => ({
   tag: "ClassExp",
-  var: vars,
-  binding: bindings,
+  fields: vars,
+  methods: bindings,
 });
 // --------------------------------2a
 
@@ -264,10 +264,10 @@ export const parseL3SpecialForm = (op: Sexp, params: Sexp[]): Result<CExp> =>
       ? parseLitExp(first(params))
       : makeFailure(`Bad quote exp: ${params}`)
     : // --------------------------------2a
-    op == "class"
+    op == "ClassExp"
     ? isNonEmptyList<Sexp>(params)
       ? parseClassExp(first(params), rest(params))
-      : makeFailure(`Bad class exp: ${params}`)
+      : makeFailure(`Bad ClassExp exp: ${params}`)
     : // --------------------------------2a
       makeFailure("Never");
 
@@ -343,9 +343,9 @@ const isPrimitiveOp = (x: string): boolean =>
     "string?",
   ].includes(x);
 
-// add class as a special form-----------------------------------2a
+// add ClassExp as a special form-----------------------------------2a
 const isSpecialForm = (x: string): boolean =>
-  ["if", "lambda", "let", "quote", "class"].includes(x);
+  ["if", "lambda", "let", "quote", "ClassExp"].includes(x);
 // --------------------------------2a
 
 const parseAppExp = (op: Sexp, params: Sexp[]): Result<AppExp> =>
@@ -492,7 +492,7 @@ export const unparseL3 = (exp: Program | Exp): string =>
     ? `(L3 ${unparseLExps(exp.exps)})`
     : // --------------------------------2a
     isClassExp(exp)
-    ? `(class (${exp.var.map((v) => v.var).join(" ")}) (${exp.binding
+    ? `(ClassExp (${exp.fields.map((v) => v.var).join(" ")}) (${exp.methods
         .map((m) => `(${m.var.var} ${unparseL3(m.val)})`)
         // .map((m) => `(${m.val}22${m.var})`)
         .join(" ")}))`

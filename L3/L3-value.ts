@@ -1,13 +1,13 @@
 // ========================================================
 // Value type definition for L4
 
-import { isPrimOp, CExp, PrimOp, VarDecl } from './L3-ast';
+import { isPrimOp, CExp, PrimOp, VarDecl ,Binding, ClassExp, isClassExp} from './L3-ast';
 import { Env, makeEmptyEnv } from './L3-env-env';
 import { append } from 'ramda';
 import { isArray, isNumber, isString } from '../shared/type-predicates';
 
 
-export type Value = SExpValue;
+export type Value = SExpValue | ClassExp;
 
 export type Functional = PrimOp | Closure;
 export const isFunctional = (x: any): x is Functional => isPrimOp(x) || isClosure(x);
@@ -28,6 +28,33 @@ export const makeClosureEnv = (params: VarDecl[], body: CExp[], env: Env): Closu
 export const isClosure = (x: any): x is Closure => x.tag === "Closure";
 
 // ========================================================
+//------------- b2
+// export type Class = {
+//     tag: "Class";
+//     fields: VarDecl[];
+//     methods: Binding[];
+//     env: Env;
+// }
+
+// export const makeClass= (fields: VarDecl[],methods: Binding[]): ClassExp =>
+//     ({tag: "ClassExp", fields: fields, methods: methods});
+// export const makeClassEnv= (fields: VarDecl[],methods: Binding[], env:Env): ClassExp =>
+//     ({tag: "ClassExp", fields: fields, methods: methods});
+// export const isClass = (x: any): x is ClassExp => x.tag === "ClassExp";
+
+export type Object = {
+    tag: "Object";
+    fields: VarDecl[];
+    methods: Binding[];
+    env: Env;
+}
+
+export const makeObject= (fields: VarDecl[],methods: Binding[]): Object =>
+    ({tag: "Object", fields: fields, methods: methods, env : makeEmptyEnv()});
+export const makeObjectEnv= (fields: VarDecl[],methods: Binding[], env:Env): Object =>
+    ({tag: "Object", fields: fields, methods: methods, env: env});
+export const isObject = (x: any): x is Object => x.tag === "Object";
+//-------------b2
 // SExp
 export type CompoundSExp = {
     tag: "CompoundSexp";
@@ -86,4 +113,6 @@ export const valueToString = (val: Value): string =>
     isSymbolSExp(val) ? val.val :
     isEmptySExp(val) ? "'()" :
     isCompoundSExp(val) ? compoundSExpToString(val) :
+    isClassExp(val)? " "://-------------b2
+    isObject(val)? " "://-------------b2
     val;

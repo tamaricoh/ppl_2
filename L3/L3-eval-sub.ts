@@ -1,6 +1,6 @@
 // L3-eval.ts
 import { map } from "ramda";
-import { isCExp, isLetExp } from "./L3-ast";
+import { ClassExp, isCExp, isLetExp, isClassExp,makeClassExp, Binding, isBinding } from "./L3-ast";
 import { BoolExp, CExp, Exp, IfExp, LitExp, NumExp,
          PrimOp, ProcExp, Program, StrExp, VarDecl } from "./L3-ast";
 import { isAppExp, isBoolExp, isDefineExp, isIfExp, isLitExp, isNumExp,
@@ -9,7 +9,7 @@ import { makeBoolExp, makeLitExp, makeNumExp, makeProcExp, makeStrExp } from "./
 import { parseL3Exp } from "./L3-ast";
 import { applyEnv, makeEmptyEnv, makeEnv, Env } from "./L3-env-sub";
 import { isClosure, makeClosure, Closure, Value } from "./L3-value";
-import { first, rest, isEmpty, List, isNonEmptyList } from '../shared/list';
+import { first, rest, isEmpty, List, isNonEmptyList, allT } from '../shared/list';
 import { isBoolean, isNumber, isString } from "../shared/type-predicates";
 import { Result, makeOk, makeFailure, bind, mapResult, mapv } from "../shared/result";
 import { renameExps, substitute } from "./substitute";
@@ -37,6 +37,7 @@ const L3applicativeEval = (exp: CExp, env: Env): Result<Value> =>
                             (rands: Value[]) =>
                                 L3applyProcedure(rator, rands, env))) :
     isLetExp(exp) ? makeFailure('"let" not supported (yet)') :
+    isClassExp(exp)? evalClass(exp,env):
     makeFailure('Never');
 
 export const isTrueValue = (x: Value): boolean =>
@@ -59,12 +60,13 @@ const L3applyProcedure = (proc: Value, args: Value[], env: Env): Result<Value> =
 // values into the body of the closure.
 // To make the types fit - computed values of params must be
 // turned back in Literal Expressions that eval to the computed value.
-const valueToLitExp = (v: Value): NumExp | BoolExp | StrExp | LitExp | PrimOp | ProcExp =>
+const valueToLitExp = (v: Value): NumExp | BoolExp | StrExp | LitExp | PrimOp | ProcExp | ClassExp=>
     isNumber(v) ? makeNumExp(v) :
     isBoolean(v) ? makeBoolExp(v) :
     isString(v) ? makeStrExp(v) :
     isPrimOp(v) ? v :
     isClosure(v) ? makeProcExp(v.params, v.body) :
+    isClassExp(v)? makeClassExp(v.fields, v.methods): 
     makeLitExp(v);
 
 const applyClosure = (proc: Closure, args: Value[], env: Env): Result<Value> => {
@@ -74,7 +76,17 @@ const applyClosure = (proc: Closure, args: Value[], env: Env): Result<Value> => 
     return evalSequence(substitute(body, vars, litArgs), env);
     //return evalSequence(substitute(proc.body, vars, litArgs), env);
 }
-
+//------b2
+export const evalClass = (exp: ClassExp, env: Env): Result<Value> =>{
+const fields = map((b:VarDecl)=> b.var, exp.fields);
+const methods = exp.methods;
+if (allT(isBinding, methods)) {
+    const paramss = map((v: ProcExp) => v.args, vals);
+    const bodies = map((v: ProcExp) => v.body, vals);
+    return evalSequence(substitute(exp.methods,fields,exp.methods), makeRecEnv(vars, paramss, bodies, env));
+} else {
+    return makeFailure(`Letrec: all variables must be bound to procedures: ${format(exp)}`);
+}};
 // Evaluate a sequence of expressions (in a program)
 export const evalSequence = (seq: List<Exp>, env: Env): Result<Value> =>
     isNonEmptyList<Exp>(seq) ? 
