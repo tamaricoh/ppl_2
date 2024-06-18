@@ -51,6 +51,7 @@ import {
   makeObject,
   Object,
   Value,
+  isSymbolSExp,
 } from "./L3-value";
 import {
   first,
@@ -176,38 +177,30 @@ const applyClass = (proc: Class, args: Value[]): Result<Value> =>
 
 //================================================
 const applyObject = (proc: Object, args: Value[]): Result<Value> => {
+  if (isSymbolSExp(args[0])) {
     const arrayBinding = proc.class.methods;
 
     if (arrayBinding.length === 0) {
-        return makeFailure("No methods found in proc.class.methods");
+      return makeFailure("No methods found in proc.class.methods");
     }
-
-    const search = arrayBinding.filter((v: Binding) => v.var.var == args[0]);
-    
+    const str = args[0].val;
+    const search = arrayBinding.filter((v: Binding) => v.var.var === str);
     if (search.length === 0) {
-        return makeFailure("No matching method found");
+      return makeFailure(`No matching method found`);
     }
-    const searchVar= search.map((v:Binding)=> v.var);
-    const searchVal= search.map((v:Binding)=> v.val);
-    return applyClosure(makeClosure(searchVar,searchVal), args, makeEmptyEnv());
+    const searchVar = search.map((v: Binding) => v.var);
+    const searchVal = search.map((v: Binding) => v.val);
+    return applyClosure(
+      makeClosure(searchVar, searchVal),
+      args,
+      makeEmptyEnv()
+    );
+  }
+  return makeFailure(`No rands`);
 };
 //================================================
 export const evalClass = (exp: ClassExp, env: Env): Result<Value> =>
-  makeOk(makeClass(exp.fields, exp.methods)); //--------------------------------------------------------
-//   const fields = map((b: VarDecl) => b.var, exp.fields);
-//   const methods = exp.methods;
-//   if (allT(isBinding, methods)) {
-//     const paramss = map((v: ProcExp) => v.args, vals);
-//     const bodies = map((v: ProcExp) => v.body, vals);
-//     return evalSequence(
-//       substitute(exp.methods, fields, exp.methods),
-//       makeRecEnv(vars, paramss, bodies, env)
-//     );
-//   } else {
-//     return makeFailure(
-//       `Letrec: all variables must be bound to procedures: ${format(exp)}`
-//     );
-//   }
+  makeOk(makeClass(exp.fields, exp.methods));
 
 // Evaluate a sequence of expressions (in a program)
 export const evalSequence = (seq: List<Exp>, env: Env): Result<Value> =>
