@@ -101,7 +101,11 @@ export type LetExp = { tag: "LetExp"; bindings: Binding[]; body: CExp[] };
 export type LitExp = { tag: "LitExp"; val: SExpValue };
 
 // --------------------------------2a
-export type ClassExp = { tag: "ClassExp"; fields: VarDecl[]; methods: Binding[] };
+export type ClassExp = {
+  tag: "ClassExp";
+  fields: VarDecl[];
+  methods: Binding[];
+};
 // --------------------------------2a
 
 // Type value constructors for disjoint types
@@ -264,7 +268,7 @@ export const parseL3SpecialForm = (op: Sexp, params: Sexp[]): Result<CExp> =>
       ? parseLitExp(first(params))
       : makeFailure(`Bad quote exp: ${params}`)
     : // --------------------------------2a
-    op == "ClassExp"
+    op == "class"
     ? isNonEmptyList<Sexp>(params)
       ? parseClassExp(first(params), rest(params))
       : makeFailure(`Bad ClassExp exp: ${params}`)
@@ -345,7 +349,7 @@ const isPrimitiveOp = (x: string): boolean =>
 
 // add ClassExp as a special form-----------------------------------2a
 const isSpecialForm = (x: string): boolean =>
-  ["if", "lambda", "let", "quote", "ClassExp"].includes(x);
+  ["if", "lambda", "let", "quote", "class"].includes(x);
 // --------------------------------2a
 
 const parseAppExp = (op: Sexp, params: Sexp[]): Result<AppExp> =>
@@ -494,18 +498,14 @@ export const unparseL3 = (exp: Program | Exp): string =>
     isClassExp(exp)
     ? `(ClassExp (${exp.fields.map((v) => v.var).join(" ")}) (${exp.methods
         .map((m) => `(${m.var.var} ${unparseL3(m.val)})`)
-        // .map((m) => `(${m.val}22${m.var})`)
         .join(" ")}))`
     : // --------------------------------2a
       exp;
-
-
 
 const parseVarDecls = (vars: Sexp): Result<VarDecl[]> =>
   isArray(vars) && allT(isString, vars)
     ? makeOk(map(makeVarDecl, vars))
     : makeFailure(`Invalid vars for ClassExp ${format(vars)}`);
-
 
 const parseClassExp = (vars: Sexp, bindings: Sexp[]): Result<ClassExp> =>
   bind(parseVarDecls(vars), (varDecls: VarDecl[]) =>
@@ -522,17 +522,17 @@ const parseClassExp = (vars: Sexp, bindings: Sexp[]): Result<ClassExp> =>
     )
   );
 
-  const parseBindings = (bindings: Sexp): Result<Binding[]> => {
-    if (!isGoodBindings(bindings)) {
-      return makeFailure(`Invalid bindings: ${format(bindings)}`);
-    }
-    const vars = map((b) => b[0], bindings);
-    const valsResult = mapResult(
-      (binding) => parseL3CExp(rest(binding)[0]),
-      bindings
-    );
-    return bind(valsResult, (vals: CExp[]) =>
-      makeOk(zipWith(makeBinding, vars, vals))
-    );
-  };
+const parseBindings = (bindings: Sexp): Result<Binding[]> => {
+  if (!isGoodBindings(bindings)) {
+    return makeFailure(`Invalid bindings: ${format(bindings)}`);
+  }
+  const vars = map((b) => b[0], bindings);
+  const valsResult = mapResult(
+    (binding) => parseL3CExp(rest(binding)[0]),
+    bindings
+  );
+  return bind(valsResult, (vals: CExp[]) =>
+    makeOk(zipWith(makeBinding, vars, vals))
+  );
+};
 // --------------------------------2a
