@@ -185,16 +185,21 @@ const applyObject = (proc: Object, args: Value[]): Result<Value> => {
     }
     const str = args[0].val;
     const search = arrayBinding.filter((v: Binding) => v.var.var === str);
+    console.log("the serach is:", search);
     if (search.length === 0) {
       return makeFailure(`No matching method found`);
     }
-    const searchVar = search.map((v: Binding) => v.var);
-    const searchVal = search.map((v: Binding) => v.val);
-    return applyClosure(
-      makeClosure(searchVar, searchVal),
-      args,
-      makeEmptyEnv()
-    );
+    const searchVal = search[0].val;
+    if(isProcExp(searchVal) ){
+        const searchArgs= searchVal.args;
+        const searchBody= searchVal.body;
+        return applyClosure(
+            makeClosure(searchArgs, searchBody),
+            args,
+            makeEmptyEnv()
+          );
+    } 
+    return makeFailure(`Not procExp`);
   }
   return makeFailure(`No rands`);
 };
