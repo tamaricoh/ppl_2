@@ -1,11 +1,9 @@
 import { map, zipWith } from "ramda";
 import {
   isBoolExp,
-  isCExp,
   isLitExp,
   isNumExp,
   isPrimOp,
-  isStrExp,
   isVarRef,
   isAppExp,
   isDefineExp,
@@ -13,18 +11,13 @@ import {
   isLetExp,
   isProcExp,
   Binding,
-  VarDecl,
   CExp,
   Exp,
   IfExp,
-  LetExp,
   ProcExp,
   Program,
-  parseL3Exp,
-  DefineExp,
   ClassExp,
   isClassExp,
-  isBinding,
   makeClassExp,
   makeVarDecl,
   makeProcExp,
@@ -39,18 +32,9 @@ import {
   makeDefineExp,
   makeProgram,
   isExp,
-  makeLetExp,
   makeBinding,
 } from "./L3-ast";
-import {
-  Result,
-  makeOk,
-  makeFailure,
-  bind,
-  mapResult,
-  mapv,
-  safe2,
-} from "../shared/result";
+import { Result, makeOk, makeFailure, bind, mapResult } from "../shared/result";
 import { makeSymbolSExp } from "./L3-value";
 import { allT, first, rest, isEmpty, isNonEmptyList } from "../shared/list";
 type NonEmptyList<T> = [T, ...T[]];
@@ -114,39 +98,13 @@ export const noClass_CExp = (exp: CExp): Result<CExp> =>
     : isVarRef(exp)
     ? makeOk(exp)
     : isAppExp(exp)
-    ? safe2((rator: CExp, rands: CExp[]) => makeOk(makeAppExp(rator, rands)))(
-        noClass_CExp(exp.rator),
-        mapResult(noClass_CExp, exp.rands)
-      )
+    ? makeOk(exp)
     : isIfExp(exp)
-    ? safe2((test: CExp, then: CExp) =>
-        bind(noClass_CExp(exp.alt), (alt: CExp) =>
-          makeOk(makeIfExp(test, then, alt))
-        )
-      )(noClass_CExp(exp.test), noClass_CExp(exp.then)) //======================================================================fix here
+    ? makeOk(exp)
     : isProcExp(exp)
-    ? bind(mapResult(noClass_CExp, exp.body), (body: CExp[]) =>
-        makeOk(makeProcExp(exp.args, body))
-      )
+    ? makeOk(exp)
     : isLetExp(exp)
-    ? safe2((vals: CExp[], body: CExp[]) =>
-        makeOk(
-          makeLetExp(
-            zipWith(
-              makeBinding,
-              map((binding) => binding.var.var, exp.bindings),
-              vals
-            ),
-            body
-          )
-        )
-      )(
-        mapResult(
-          (binding: Binding) => noClass_CExp(binding.val),
-          exp.bindings
-        ),
-        mapResult(noClass_CExp, exp.body)
-      )
+    ? makeOk(exp)
     : isClassExp(exp)
     ? bind(
         mapResult((binding: Binding) => noClass_CExp(binding.val), exp.methods),
