@@ -180,24 +180,23 @@ const applyObject = (proc: Object): Result<Value> => {
 };
 
 //================================================
-export const evalClass = (exp: ClassExp, env: Env): Result<Value> => {
-  //   return makeOk(makeClass()); //--------------------------------------------------------
-  return makeFailure("");
-  //   const fields = map((b: VarDecl) => b.var, exp.fields);
-  //   const methods = exp.methods;
-  //   if (allT(isBinding, methods)) {
-  //     const paramss = map((v: ProcExp) => v.args, vals);
-  //     const bodies = map((v: ProcExp) => v.body, vals);
-  //     return evalSequence(
-  //       substitute(exp.methods, fields, exp.methods),
-  //       makeRecEnv(vars, paramss, bodies, env)
-  //     );
-  //   } else {
-  //     return makeFailure(
-  //       `Letrec: all variables must be bound to procedures: ${format(exp)}`
-  //     );
-  //   }
-};
+export const evalClass = (exp: ClassExp, env: Env): Result<Value> =>
+  makeOk(makeClass(exp.fields, exp.methods)); //--------------------------------------------------------
+//   const fields = map((b: VarDecl) => b.var, exp.fields);
+//   const methods = exp.methods;
+//   if (allT(isBinding, methods)) {
+//     const paramss = map((v: ProcExp) => v.args, vals);
+//     const bodies = map((v: ProcExp) => v.body, vals);
+//     return evalSequence(
+//       substitute(exp.methods, fields, exp.methods),
+//       makeRecEnv(vars, paramss, bodies, env)
+//     );
+//   } else {
+//     return makeFailure(
+//       `Letrec: all variables must be bound to procedures: ${format(exp)}`
+//     );
+//   }
+
 // Evaluate a sequence of expressions (in a program)
 export const evalSequence = (seq: List<Exp>, env: Env): Result<Value> =>
   isNonEmptyList<Exp>(seq)
