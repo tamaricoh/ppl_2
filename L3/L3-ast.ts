@@ -496,7 +496,7 @@ export const unparseL3 = (exp: Program | Exp): string =>
     ? `(L3 ${unparseLExps(exp.exps)})`
     : // --------------------------------2a
     isClassExp(exp)
-    ? `(ClassExp (${exp.fields.map((v) => v.var).join(" ")}) (${exp.methods
+    ? `(class (${exp.fields.map((v) => v.var).join(" ")}) (${exp.methods
         .map((m) => `(${m.var.var} ${unparseL3(m.val)})`)
         .join(" ")}))`
     : // --------------------------------2a

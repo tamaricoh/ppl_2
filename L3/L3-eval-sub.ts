@@ -1,5 +1,5 @@
 // L3-eval.ts
-import { map } from "ramda";
+import { filter, map } from "ramda";
 import { isCExp, isLetExp } from "./L3-ast";
 import {
   BoolExp,
@@ -134,7 +134,7 @@ const L3applyProcedure = (
     isClass(proc)
     ? applyClass(proc, args)
     : isObject(proc)
-    ? applyObject(proc)
+    ? applyObject(proc, args)
     : makeFailure(`Bad procedure ${format(proc)}`);
 
 // Applications are computed by substituting computed
@@ -175,10 +175,22 @@ const applyClass = (proc: Class, args: Value[]): Result<Value> =>
   makeOk(makeObject(proc, args));
 
 //================================================
-const applyObject = (proc: Object): Result<Value> => {
-  return makeFailure(""); //------------------------------------------------------
-};
+const applyObject = (proc: Object, args: Value[]): Result<Value> => {
+    const arrayBinding = proc.class.methods;
 
+    if (arrayBinding.length === 0) {
+        return makeFailure("No methods found in proc.class.methods");
+    }
+
+    const search = arrayBinding.filter((v: Binding) => v.var.var == args[0]);
+    
+    if (search.length === 0) {
+        return makeFailure("No matching method found");
+    }
+    const searchVar= search.map((v:Binding)=> v.var);
+    const searchVal= search.map((v:Binding)=> v.val);
+    return applyClosure(makeClosure(searchVar,searchVal), args, makeEmptyEnv());
+};
 //================================================
 export const evalClass = (exp: ClassExp, env: Env): Result<Value> =>
   makeOk(makeClass(exp.fields, exp.methods)); //--------------------------------------------------------
