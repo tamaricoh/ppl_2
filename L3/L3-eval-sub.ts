@@ -39,7 +39,7 @@ import {
   makeClassExp,
 } from "./L3-ast";
 import { parseL3Exp } from "./L3-ast";
-import { applyEnv, makeEmptyEnv, makeEnv, Env } from "./L3-env-sub";
+import { applyEnv, makeEmptyEnv, makeEnv, Env, isEmptyEnv } from "./L3-env-sub";
 import {
   isClosure,
   makeClosure,
@@ -107,7 +107,7 @@ const L3applicativeEval = (exp: CExp, env: Env): Result<Value> =>
     ? makeFailure('"let" not supported (yet)')
     : //================================================
     isClassExp(exp)
-    ? evalClass(exp, env)
+    ? evalClass(exp)
     : makeFailure("Never");
 
 export const isTrueValue = (x: Value): boolean => !(x === false);
@@ -135,7 +135,7 @@ const L3applyProcedure = (
     isClass(proc)
     ? applyClass(proc, args)
     : isObject(proc)
-    ? applyObject(proc, args)
+    ? applyObject(proc, args, env)
     : makeFailure(`Bad procedure ${format(proc)}`);
 
 // Applications are computed by substituting computed
@@ -176,35 +176,43 @@ const applyClass = (proc: Class, args: Value[]): Result<Value> =>
   makeOk(makeObject(proc, args));
 
 //================================================
-const applyObject = (proc: Object, args: Value[]): Result<Value> => {
+const applyObject = (proc: Object, args: Value[], env: Env): Result<Value> => {
   if (isSymbolSExp(args[0])) {
     const arrayBinding = proc.class.methods;
 
     if (arrayBinding.length === 0) {
       return makeFailure("No methods found in proc.class.methods");
     }
+
     const str = args[0].val;
     const search = arrayBinding.filter((v: Binding) => v.var.var === str);
-    console.log("the serach is:", search);
+
     if (search.length === 0) {
-      return makeFailure(`No matching method found`);
+      return makeFailure(`Unrecognized method: ${str}`);
     }
+
     const searchVal = search[0].val;
-    if(isProcExp(searchVal) ){
-        const searchArgs= searchVal.args;
-        const searchBody= searchVal.body;
-        return applyClosure(
-            makeClosure(searchArgs, searchBody),
-            args,
-            makeEmptyEnv()
-          );
-    } 
-    return makeFailure(`Not procExp`);
+    if (isProcExp(searchVal)) {
+      const searchArgs = searchVal.args;
+      const searchBody = searchVal.body;
+
+      const objectEnv = proc.class.fields.reduce(
+        (accEnv, field, index) => makeEnv(field.var, proc.args[index], accEnv),
+        env
+      );
+
+      const methodClosure = makeClosure(searchArgs, searchBody);
+      return applyClosure(methodClosure, args.slice(1), objectEnv);
+    }
+
+    return makeFailure(`Found method is not a procedure`);
   }
-  return makeFailure(`No rands`);
+
+  return makeFailure(`First argument is not a symbol`);
 };
+
 //================================================
-export const evalClass = (exp: ClassExp, env: Env): Result<Value> =>
+export const evalClass = (exp: ClassExp): Result<Value> =>
   makeOk(makeClass(exp.fields, exp.methods));
 
 // Evaluate a sequence of expressions (in a program)
