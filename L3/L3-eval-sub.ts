@@ -144,7 +144,7 @@ const L3applyProcedure = (
 // turned back in Literal Expressions that eval to the computed value.
 const valueToLitExp = (
   v: Value
-): NumExp | BoolExp | StrExp | LitExp | PrimOp | ProcExp => // | ClassExp
+): NumExp | BoolExp | StrExp | LitExp | PrimOp | ProcExp =>
   isNumber(v)
     ? makeNumExp(v)
     : isBoolean(v)
@@ -155,9 +155,7 @@ const valueToLitExp = (
     ? v
     : isClosure(v)
     ? makeProcExp(v.params, v.body)
-    : // : isClassExp(v)
-      // ? makeClassExp(v.fields, v.methods)
-      makeLitExp(v);
+    : makeLitExp(v);
 
 const applyClosure = (
   proc: Closure,

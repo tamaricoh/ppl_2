@@ -15,7 +15,6 @@ import {
   isIfExp,
   isLetExp,
   isProcExp,
-  isClassExp,
   Binding,
   VarDecl,
   CExp,
@@ -23,18 +22,36 @@ import {
   IfExp,
   LetExp,
   ProcExp,
-  ClassExp,
   Program,
   parseL3Exp,
   DefineExp,
+  ClassExp,
+  isClassExp,
+  isBinding,
+  makeClassExp,
 } from "./L3-ast";
-import { applyEnv, makeEmptyEnv, makeExtEnv, Env } from "./L3-env-env";
-import { isClosure, makeClosureEnv, Closure, Value } from "./L3-value";
+import { applyEnv, makeEmptyEnv, makeExtEnv, Env } from "./L3-env-env"; // isEmptyEnv
+import {
+  isClosure,
+  makeClosureEnv,
+  Closure,
+  Value,
+  isClass,
+  makeClass,
+  Class,
+  isObject,
+  makeObject,
+  Object,
+  isSymbolSExp,
+  makeClassEnv,
+  makeObjectEnv,
+} from "./L3-value";
 import { applyPrimitive } from "./evalPrimitive";
 import { allT, first, rest, isEmpty, isNonEmptyList } from "../shared/list";
 import { Result, makeOk, makeFailure, bind, mapResult } from "../shared/result";
 import { parse as p } from "../shared/parser";
 import { format } from "../shared/format";
+import { env } from "process";
 
 // ========================================================
 // Eval functions
@@ -88,6 +105,10 @@ const applyProcedure = (proc: Value, args: Value[]): Result<Value> =>
     ? applyPrimitive(proc, args)
     : isClosure(proc)
     ? applyClosure(proc, args)
+    : isClass(proc)
+    ? applyClass(proc, args, makeEmptyEnv()) //===========================
+    : isObject(proc)
+    ? applyObject(proc, args, makeEmptyEnv()) //===========================
     : makeFailure(`Bad procedure ${format(proc)}`);
 
 const applyClosure = (proc: Closure, args: Value[]): Result<Value> => {
@@ -141,4 +162,67 @@ const evalLet = (exp: LetExp, env: Env): Result<Value> => {
 };
 
 export const evalClass = (exp: ClassExp, env: Env): Result<Value> =>
-  makeFailure("");
+  makeOk(makeClassEnv(exp.fields, exp.methods, env));
+
+// const applyObject = (proc: Object, args: Value[], env: Env): Result<Value> => {
+//   if (isSymbolSExp(args[0])) {
+//     const arrayBinding = proc.class.methods;
+//     if (arrayBinding.length === 0) {
+//       return makeFailure("No methods found in proc.class.methods");
+//     }
+//     const str = args[0].val;
+//     const search = arrayBinding.filter((v: Binding) => v.var.var === str);
+//     if (search.length === 0) {
+//       return makeFailure(`Unrecognized method: ${str}`);
+//     }
+//     const searchVal = search[0].val;
+//     if (isProcExp(searchVal)) {
+//       const searchArgs = searchVal.args;
+//       const searchBody = searchVal.body;
+//       // const objectEnv = proc.class.fields.reduce(
+//       //   (accEnv, field, index) => makeEnv(field.var, proc.args[index], accEnv),
+
+//       //   env
+//       // );
+//       const methodClosure = makeClosureEnv(searchArgs, searchBody, env);
+//       return applyClosure(methodClosure, args.slice(1));
+//     }
+//     return makeFailure(`Found method is not a procedure`);
+//   }
+//   return makeFailure(`First argument is not a symbol`);
+// };
+const applyObject = (obj: Object, args: Value[], env: Env): Result<Value> => {
+  if (isSymbolSExp(args[0])) {
+    const methodName = args[0].val;
+    const methodBinding = obj.class.methods.find(
+      (b) => b.var.var === methodName
+    );
+
+    if (!methodBinding) {
+      return makeFailure(`Unrecognized method: ${methodName}`);
+    }
+
+    if (isProcExp(methodBinding.val)) {
+      const method = methodBinding.val;
+
+      // Create an environment that includes the object's fields
+      const objectEnv = obj.class.fields.reduce(
+        (accEnv, field, index) =>
+          makeExtEnv([field.var], [obj.args[index]], accEnv),
+        env
+      );
+
+      const methodClosure = makeClosureEnv(method.args, method.body, objectEnv);
+      return applyClosure(methodClosure, args.slice(1));
+    } else {
+      return makeFailure(`Method ${methodName} is not a procedure`);
+    }
+  } else {
+    return makeFailure(
+      `Expected a symbol for method name, but got ${format(args[0])}`
+    );
+  }
+};
+
+const applyClass = (proc: Class, args: Value[], env: Env): Result<Value> =>
+  makeOk(makeObjectEnv(proc, args, env));
